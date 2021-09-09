@@ -1,0 +1,215 @@
+#!/Users/brian/bin/perl
+use v5.34;
+use strict;
+
+use experimental qw(signatures);
+
+
+use Cwd qw(getcwd);
+use File::Basename;
+
+my $Verbose = $ENV{SRPN_VERBOSE} // 0;
+
+sub indent () { '  ' }
+sub stdout ( $prefix, $message ) { say STDOUT indent(), $prefix, ' ', $message }
+sub stderr ( $prefix, $message ) { say STDERR indent(), $prefix, ' ', $message }
+
+sub debug ( $message ) { return unless $Verbose; stderr( '!!!', $message ) }
+
+BEGIN {
+	my @stack;
+
+	# for undo
+	my @removed;
+	my $added;
+
+	sub removed  () { @removed }
+	sub added    () { $added }
+
+	sub add_items ( @items ) {
+		say "  # adding: @items";
+		unshift @stack, @items;
+		$added = @items;
+		}
+
+	sub clear () { @stack = (); return }
+
+	sub get_item    () { get_items_n(1) }
+	sub get_items_n () { get_items( get_items(1) ) }
+
+	sub get_items ( $n = -1 ) {
+		# say "\@_ is <@_>";
+		if( $n == -1 ) { my @s = @stack; clear(); return @s }
+		my $n = n_or_size($n);
+		debug( "n is <$n>" );
+		@removed = splice @stack, 0, n_or_size($n), ();
+		}
+
+	sub high_index () { $#stack }
+	sub n_or_size ( $n ) { $n > @stack ? $#stack : $n }
+
+	sub peek_item () { $stack[0] }
+	sub peek_item_at ( $i = 0 ) { $stack[$i] }
+
+	sub size () { scalar @stack }
+	}
+
+=pod
+
+reduce
+map
+rot
+rotcc
+peek
+
+=cut
+
+my %Operations;
+%Operations = (
+	verbose    => sub { $Verbose = 1; return },
+	quiet      => sub { $Verbose = 0; return },
+	output     => sub { say peek_item(); return },
+	show       => sub { foreach my $i ( 0 .. high_index() ) { stdout( '#', "$i: " . peek_item_at($i) ) }; return },
+	stop       => sub { exit },
+
+	operate    => sub { my $op = get_item(); operate($op) },
+
+	clear           => sub { clear() },
+	repeat_n        => sub { my $n = get_item(); ( get_item() ) x ($n+1) },
+	drop_n          => sub {         get_items( get_item() ); return },
+	rotate_n        => sub { my @s = get_items( get_item() ); push @s, shift @s; @s },
+	anti_rotate_n   => sub { my @s = get_items( get_item() ); unshift @s, shift @s; @s },
+
+	repeat          => sub { operate('=2'); operate('repeat_n');      },
+	drop            => sub { operate('=1'); operate('drop_n');        },
+
+	rotate          => sub { operate('=3'); operate('rotate_n');      },
+	anti_rotate     => sub { operate('=3'); operate('anti_rotate_n'); },
+	swap            => sub { operate('=2'); operate('rotate_n');      },
+
+	define     => sub {
+		my( $name, $args ) = get_items(2);
+		if( exists $Operations{$name} ) {
+			error( "Operation <$name> already exists" );
+			return;
+			}
+
+		my @operations = get_items($args);
+		$Operations{$name} = sub {
+			foreach my $arg ( reverse @operations ) {
+				operate( $arg );
+				}
+			};
+		},
+	undefine   => sub { delete $Operations{get_item()} },
+
+
+
+	reverse_n  => sub { reverse get_items( n_or_size( get_item() ) ) },
+#	'sort'     => sub { sort get_items(-1) },
+#	nsort      => sub { sort { $a <=> $b } get_items(-1) },
+	sort_n     => sub { sort get_items(get_item()) },
+	nsort_n    => sub { sort { $a <=> $b } get_items(get_item()) },
+
+	cwd        => sub { getcwd },
+	dirname    => sub { getcwd },
+	env        => sub { $ENV{ get_item() } },
+
+	basename   => sub { basename( get_item() ) },
+	catfile    => sub { catfile( get_items(2) ) },
+
+
+	'join'     => sub { my( $glue, @args ) = get_items(3); join $glue, @args; },
+	'split'    => sub { my( $glue ) = get_item(); split /\Q$glue/, get_item },
+	'reverse'  => sub { scalar reverse get_item() },
+	'uc'       => sub { uc( get_item() ) },
+	'lc'       => sub { lc( get_item() ) },
+	'fc'       => sub { fc( get_item() ) },
+	'ucfirst'  => sub { ucfirst( get_item() ) },
+	'lcfirst'  => sub { lcfirst( get_item() ) },
+	'chop'     => sub { my $s = get_item(); chop $s; $s },
+	'size'     => sub { size() },
+
+	'+'        => sub { my @args = get_items(2); $args[0] + $args[1] },
+	'-'        => sub { my @args = get_items(2); $args[0] - $args[1] },
+	'*'        => sub { my @args = get_items(2); $args[0] * $args[1] },
+	'/'        => sub { my @args = get_items(2); eval { $args[0] / $args[1] } },
+	'^'        => sub { my @args = get_items(2); $args[0] ** $args[1] },
+	'1/x'      => sub { operate('=1'); operate('/') },
+	E          => sub { operate('=10'); operate('^'); operate('*'); return },
+
+	e          => sub { operate('=2.7182818284') },
+	pi         => sub { operate('=3.1415926') },
+	degrees    => sub { operate($_) for ( qw(pi =180 / *) ) },
+	radians    => sub { operate($_) for ( qw(=180 pi / *) ) },
+	sine       => sub { sin( get_item() ) },
+	cosine     => sub { cos( get_item() ) },
+	tangent    => sub { tan( get_item() ) },
+
+	'int'    => sub { int( get_item ) },
+	'length' => sub { length( get_item ) },
+	range    => sub { my @nm = get_items(2); $nm[0] .. $nm[1] },
+	'ord'    => sub { ord(get_item()) },
+	'chr'    => sub { chr(get_item()) },
+
+	'words'   => sub { split /\s+/, get_item() },
+
+	'undo'   => sub {
+		my @previous = removed();
+		get_items( added() );
+		@previous;
+		},
+	);
+
+while( my $line = get_line() ) {
+	operate( $line ) // next;
+	error( $line )
+	}
+
+sub get_line {
+	state $args = 1 if @ARGV;
+	my $line = do {
+		if( $args ) {
+			return unless @ARGV;
+			shift @ARGV;
+			}
+		else { scalar <<>> }
+		};
+
+	$line =~ s/\A\s*|\s*\z//gr;
+	}
+
+my $operations_count;
+sub operate ( $line ) {
+	$operations_count++;
+	if( $line =~ /\A=(.*)\z/ ) {
+		add_items( $1 );
+		$Operations{show}->() if $Verbose;
+		return;
+		}
+
+	unless( exists $Operations{$line} ) {
+		error( "Unknown operator <$line>" );
+		return 0;
+		}
+
+	add_items( $Operations{$line}->() );
+	$Operations{show}->() if $Verbose;
+
+	return;
+	}
+
+sub error ( $line ) {
+	stderr( '!!!', "Unrecognized <$line>. Ignoring." );
+	}
+
+__END__
+
+Rebol
+Kitten
+Factor
+Tarski
+Joy
+Kipple
+False
+Forth
