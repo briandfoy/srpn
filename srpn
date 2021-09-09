@@ -14,13 +14,24 @@ srpn - a calculator for strings
 
 =head1 SYNOPSIS
 
+	$ ./srpn =world =hello =32 chr join output
+	hello world
+
 	$ ./srpn
+	=world
+	=hello
+	=32
+	chr
+	output
+	hello world
 
 =head1 DESCRIPTION
 
 This is an RPN calculator program designed for strings. Although it
 can do some math too, I use this for various string things on the command
 line.
+
+This is a for-fun project that I don't intend to support for anyone.
 
 =head1 AUTHOR
 
