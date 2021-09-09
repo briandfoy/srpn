@@ -64,7 +64,7 @@ BEGIN {
 	sub added    () { $added }
 
 	sub add_items ( @items ) {
-		say "  # adding: @items";
+		debug( "  # adding: @items" );
 		unshift @stack, @items;
 		$added = @items;
 		}
