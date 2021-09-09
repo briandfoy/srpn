@@ -69,7 +69,14 @@ my %Operations;
 	verbose    => sub { $Verbose = 1; return },
 	quiet      => sub { $Verbose = 0; return },
 	output     => sub { say peek_item(); return },
-	show       => sub { foreach my $i ( 0 .. high_index() ) { stdout( '#', "$i: " . peek_item_at($i) ) }; return },
+	show       => sub {
+		foreach my $i ( 0 .. high_index() ) {
+			my $value = peek_item_at($i);
+			$value =~ tr/\x{20}\x{0A}\x{0D}/\x{2420}\x{2424}\x{240D}/;
+			stdout( '#', "$i: " . $value );
+			}
+		return
+		},
 	stop       => sub { exit },
 
 	operate    => sub { my $op = get_item(); operate($op) },
