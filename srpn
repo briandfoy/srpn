@@ -71,7 +71,7 @@ BEGIN {
 
 	sub clear () { @stack = (); return }
 
-	sub get_item    () { get_items_n(1) }
+	sub get_item    () { (get_items(1))[0] }
 	sub get_items_n () { get_items( get_items(1) ) }
 
 	sub get_items ( $n = -1 ) {
