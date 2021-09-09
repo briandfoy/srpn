@@ -8,6 +8,43 @@ use experimental qw(signatures);
 use Cwd qw(getcwd);
 use File::Basename;
 
+=head1 NAME
+
+srpn - a calculator for strings
+
+=head1 SYNOPSIS
+
+	$ ./srpn
+
+=head1 DESCRIPTION
+
+This is an RPN calculator program designed for strings. Although it
+can do some math too, I use this for various string things on the command
+line.
+
+=head1 AUTHOR
+
+brian d foy, E<lt;>brian.d.foy@gmail.comE<gt;>
+
+=head1 COPYRIGHT
+
+Copyright © 2021, brian d foy. All rights reserved.
+
+=head1 SOURCE
+
+This code lives in GitHub, and is mirrored in BitBucket and GitLab:
+
+	https://github.com/briandfoy/srpn
+
+See the CONTRIBUTING.md file if you'd like to add to this.
+
+=head1 LICENSE
+
+You can use this under the terms of the Artistic License 2. A copy
+of this license is part of the source distribution.
+
+=cut
+
 my $Verbose = $ENV{SRPN_VERBOSE} // 0;
 
 sub indent () { '  ' }
